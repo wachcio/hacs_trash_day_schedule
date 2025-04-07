@@ -1,0 +1,79 @@
+##########################################################
+#
+# Standardowa karta Harmonogramu Wywozu Śmieci
+# Używa tylko wbudowanych komponentów Home Assistant
+#
+# UWAGA: Zastąp "your_street" w nazwach encji swoją ulicą
+#
+##########################################################
+
+type: vertical-stack
+cards:
+  # Karta z informacją o najbliższym wywozie
+  - type: entities
+    title: Najbliższy wywóz śmieci
+    icon: mdi:trash-can-outline
+    entities:
+      - entity: sensor.next_waste_collection_your_street
+        name: Następny wywóz
+        secondary_info: attribute
+        secondary_info_attribute: waste_type
+        icon: mdi:calendar-clock
+      - type: attribute
+        entity: sensor.next_waste_collection_your_street
+        attribute: days_until
+        name: Dni do wywozu
+        icon: mdi:calendar-clock
+    state_color: true
+
+  # Karta z listą wszystkich typów odpadów
+  - type: entities
+    title: Rodzaje odpadów
+    icon: mdi:recycle
+    entities:
+      - entity: sensor.biodegradable_collection_your_street
+        name: Biodegradowalne (BIO)
+        icon: mdi:leaf
+        secondary_info: attribute
+        secondary_info_attribute: days_until
+      - entity: sensor.mixed_collection_your_street
+        name: Zmieszane
+        icon: mdi:trash-can
+        secondary_info: attribute
+        secondary_info_attribute: days_until
+      - entity: sensor.plastic_and_metal_collection_your_street
+        name: Plastik i Metal
+        icon: mdi:bottle-soda-outline
+        secondary_info: attribute
+        secondary_info_attribute: days_until
+      - entity: sensor.paper_collection_your_street
+        name: Papier
+        icon: mdi:file-outline
+        secondary_info: attribute
+        secondary_info_attribute: days_until
+      - entity: sensor.glass_collection_your_street
+        name: Szkło
+        icon: mdi:bottle-wine
+        secondary_info: attribute
+        secondary_info_attribute: days_until
+      - entity: sensor.ash_collection_your_street
+        name: Popiół
+        icon: mdi:fire
+        secondary_info: attribute
+        secondary_info_attribute: days_until
+    state_color: true
+
+  # Karta z tabelą nadchodzących odbiorów
+  - type: markdown
+    title: Nadchodzące odbiory
+    content: >
+      {% set collections = state_attr('sensor.next_waste_collection_your_street', 'collections') %}
+      {% if collections %}
+        | Data | Dzień | Rodzaj odpadów | Dni |
+        | ---- | ----- | -------------- | --- |
+        {% for collection in collections %}
+        | {{ collection.date }} | {{ collection.weekday }} | {{ collection.waste_type }} | {{ collection.days_until }} |
+        {% endfor %}
+      {% else %}
+        Brak nadchodzących wywozów śmieci.
+      {% endif %}

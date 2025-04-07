@@ -1,0 +1,48 @@
+##########################################################
+#
+# Minimalna karta Harmonogramu Wywozu Śmieci
+# Prosty widok pokazujący tylko najważniejsze informacje
+#
+# UWAGA: Zastąp "your_street" w nazwach encji swoją ulicą
+#
+##########################################################
+
+type: entities
+title: Wywóz śmieci
+icon: mdi:trash-can-outline
+entities:
+  - entity: sensor.next_waste_collection_your_street
+    name: Następny wywóz
+    secondary_info: attribute
+    secondary_info_attribute: waste_type
+  - type: section
+    label: "Najbliższe terminy"
+  - type: custom:template-entity-row
+    entity: sensor.biodegradable_collection_your_street
+    name: "Bio"
+    icon: mdi:leaf
+    state: >
+      {{ states('sensor.biodegradable_collection_your_street') }}
+      {% if state_attr('sensor.biodegradable_collection_your_street', 'days_until') %}
+        (za {{ state_attr('sensor.biodegradable_collection_your_street', 'days_until') }} dni)
+      {% endif %}
+  - type: custom:template-entity-row
+    entity: sensor.mixed_collection_your_street
+    name: "Zmieszane"
+    icon: mdi:trash-can
+    state: >
+      {{ states('sensor.mixed_collection_your_street') }}
+      {% if state_attr('sensor.mixed_collection_your_street', 'days_until') %}
+        (za {{ state_attr('sensor.mixed_collection_your_street', 'days_until') }} dni)
+      {% endif %}
+  - type: custom:template-entity-row
+    entity: sensor.plastic_and_metal_collection_your_street
+    name: "Plastik/Metal"
+    icon: mdi:bottle-soda-outline
+    state: >
+      {{ states('sensor.plastic_and_metal_collection_your_street') }}
+      {% if state_attr('sensor.plastic_and_metal_collection_your_street', 'days_until') %}
+        (za {{ state_attr('sensor.plastic_and_metal_collection_your_street', 'days_until') }} dni)
+      {% endif %}
+show_header_toggle: false
+state_color: true

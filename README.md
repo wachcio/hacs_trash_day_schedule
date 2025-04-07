@@ -1,272 +1,60 @@
-# System Harmonogramów Wywozu Śmieci / Waste Collection Schedule System
+# Integracja Harmonogramu Wywozu Śmieci dla Home Assistant
 
-## Polski
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![GitHub release](https://img.shields.io/github/release/wachcio/waste_collection_schedule.svg)](https://github.com/YOUR_GITHUB_USERNAME/waste_collection_schedule/releases)
 
-### Opis
+Integracja Home Assistant pobierająca i wyświetlająca harmonogramy wywozu śmieci z serwisu [kiedysmieci.info](https://kiedysmieci.info/).
 
-Zestaw skryptów do pobierania i przetwarzania danych harmonogramów wywozu śmieci z serwisu https://kiedysmieci.info/
+## Funkcje
 
-Zestaw składa się z trzech skryptów:
+- Automatyczne pobieranie listy gmin i ulic obsługiwanych przez serwis
+- Wyświetlanie nadchodzących wywozów śmieci różnego typu (bio, zmieszane, plastik, papier, szkło, popiół)
+- Regularne aktualizacje harmonogramów
+- Gotowe karty do dashboardu Home Assistant
+- Przykładowe automatyzacje do powiadomień o nadchodzących wywozach
 
-1. `municipalities.py` - pobiera listę gmin dostępnych w systemie
-2. `streets.py` - pobiera listę ulic dla wybranej gminy
-3. `schedule.py` - pobiera harmonogram wywozu śmieci dla wybranej gminy i ulicy
+## Instalacja
 
-### Wymagania
+### Przez HACS (zalecane)
 
-Skrypty wymagają Pythona 3.6+ oraz następujących bibliotek:
+1. Upewnij się, że masz zainstalowany [HACS](https://hacs.xyz/)
+2. Dodaj to repozytorium jako niestandardowe repozytorium w HACS:
+   - Przejdź do HACS -> Integracje
+   - Kliknij menu (trzy kropki w prawym górnym rogu)
+   - Wybierz "Niestandardowe repozytoria"
+   - Dodaj URL: `https://github.com/YOUR_GITHUB_USERNAME/waste_collection_schedule`
+   - Kategoria: Integracja
+3. Kliknij na "Explore & Download Repositories" i wyszukaj "Waste Collection Schedule"
+4. Kliknij "Pobierz"
+5. Uruchom ponownie Home Assistant
 
-- requests
-- beautifulsoup4
+### Ręcznie
 
-Możesz zainstalować wymagane biblioteki komendą:
+1. Pobierz najnowszą wersję z [strony Releases](https://github.com/YOUR_GITHUB_USERNAME/waste_collection_schedule/releases)
+2. Rozpakuj zawartość do katalogu `custom_components` w twoim Home Assistant
+   - Upewnij się, że katalog ma nazwę `waste_collection_schedule` (nie `waste_collection_schedule-main` itp.)
+3. Uruchom ponownie Home Assistant
 
-```bash
-pip install requests beautifulsoup4
-```
+## Konfiguracja
 
-### Sposób użycia
+1. Przejdź do Ustawienia -> Urządzenia i usługi
+2. Kliknij przycisk "+ Dodaj integrację" w prawym dolnym rogu
+3. Wyszukaj "Waste Collection Schedule" lub "Harmonogram Wywozu Śmieci"
+4. Postępuj zgodnie z instrukcjami:
+   - Wybierz swoją gminę z listy
+   - Wybierz swoją ulicę
+   - Opcjonalnie: skonfiguruj częstotliwość aktualizacji (domyślnie 12 godzin)
 
-#### 1. Pobieranie listy gmin
+## Dostępne encje
 
-```bash
-python municipalities.py
-```
+Po skonfigurowaniu integracji dostępne będą następujące encje:
 
-Skrypt pobierze listę wszystkich dostępnych gmin i zapisze ją do pliku `municipalities.json`.
+- `sensor.next_waste_collection_[NAZWA_ULICY]` - informuje o najbliższym wywozie
+- `sensor.biodegradable_collection_[NAZWA_ULICY]` - wywóz odpadów biodegradowalnych
+- `sensor.mixed_collection_[NAZWA_ULICY]` - wywóz odpadów zmieszanych
+- `sensor.plastic_and_metal_collection_[NAZWA_ULICY]` - wywóz plastiku i metali
+- `sensor.paper_collection_[NAZWA_ULICY]` - wywóz papieru
+- `sensor.glass_collection_[NAZWA_ULICY]` - wywóz szkła
+- `sensor.ash_collection_[NAZWA_ULICY]` - wywóz popiołu
 
-#### 2. Pobieranie listy ulic dla wybranej gminy
-
-```bash
-# Sposób 1: Skrypt zapyta o ID gminy
-python streets.py
-
-# Sposób 2: Podaj ID gminy jako argument
-python streets.py 309474
-
-# Sposób 3: Podaj ID gminy i nazwę pliku wyjściowego
-python streets.py 309474 kudowa_zdroj_streets.json
-```
-
-Skrypt pobierze listę ulic dla wybranej gminy i zapisze ją do pliku JSON.
-
-#### 3. Pobieranie harmonogramu wywozu śmieci
-
-```bash
-# Sposób 1: Skrypt zapyta o ID gminy i nazwę ulicy
-python schedule.py
-
-# Sposób 2: Podaj ID gminy i nazwę ulicy jako argumenty
-python schedule.py 309707 "Cicha"
-
-# Sposób 3: Podaj ID gminy, nazwę ulicy i nazwę pliku wyjściowego
-python schedule.py 309707 "Cicha" moj_harmonogram.json
-```
-
-Skrypt pobierze harmonogram wywozu śmieci dla wybranej gminy i ulicy i zapisze go do pliku JSON.
-
-### Struktura danych
-
-#### Plik municipalities.json
-
-```json
-[
-    {
-        "id": "309503",
-        "province": "dolnośląskie",
-        "district": "górowski",
-        "municipality": "Niechlów",
-        "full_name": "woj.: dolnośląskie powiat: górowski gmina: Niechlów"
-    },
-    ...
-]
-```
-
-#### Plik streets_municipality_XXX.json
-
-```json
-{
-    "municipality_id": "309474",
-    "municipality_name": "Kudowa-Zdrój",
-    "streets": [
-        "1 Maja",
-        "Adama Mickiewicza",
-        ...
-    ],
-    "total_streets": 58
-}
-```
-
-#### Plik schedule_municipality_XXX_YYY.json
-
-```json
-{
-    "municipality_id": "309707",
-    "street": "Cicha",
-    "retrieval_date": "2025-04-07 12:34:56",
-    "schedule": [
-        {
-            "date": "2025-04-09",
-            "weekday": "środa",
-            "waste_type": "biodegradowalne",
-            "waste_id": "B",
-            "color": "#9F703B"
-        },
-        ...
-    ],
-    "waste_types": {
-        "B": {
-            "name": "biodegradowalne",
-            "dates": [
-                {
-                    "date": "2025-04-09",
-                    "weekday": "środa"
-                },
-                ...
-            ]
-        },
-        ...
-    },
-    "total_dates": 32
-}
-```
-
-## English
-
-### Description
-
-A set of scripts for fetching and processing waste collection schedules from https://kiedysmieci.info/
-
-The set consists of three scripts:
-
-1. `municipalities.py` - fetches the list of municipalities available in the system
-2. `streets.py` - fetches the list of streets for a selected municipality
-3. `schedule.py` - fetches the waste collection schedule for a selected municipality and street
-
-### Requirements
-
-The scripts require Python 3.6+ and the following libraries:
-
-- requests
-- beautifulsoup4
-
-You can install the required libraries with the command:
-
-```bash
-pip install requests beautifulsoup4
-```
-
-### Usage
-
-#### 1. Fetching the list of municipalities
-
-```bash
-python municipalities.py
-```
-
-The script will fetch the list of all available municipalities and save it to the `municipalities.json` file.
-
-#### 2. Fetching the list of streets for a selected municipality
-
-```bash
-# Method 1: The script will ask for the municipality ID
-python streets.py
-
-# Method 2: Provide the municipality ID as an argument
-python streets.py 309474
-
-# Method 3: Provide the municipality ID and the output filename
-python streets.py 309474 kudowa_zdroj_streets.json
-```
-
-The script will fetch the list of streets for the selected municipality and save it to a JSON file.
-
-#### 3. Fetching the waste collection schedule
-
-```bash
-# Method 1: The script will ask for the municipality ID and street name
-python schedule.py
-
-# Method 2: Provide the municipality ID and street name as arguments
-python schedule.py 309707 "Cicha"
-
-# Method 3: Provide the municipality ID, street name, and output filename
-python schedule.py 309707 "Cicha" my_schedule.json
-```
-
-The script will fetch the waste collection schedule for the selected municipality and street and save it to a JSON file.
-
-### Data Structure
-
-#### municipalities.json file
-
-```json
-[
-    {
-        "id": "309503",
-        "province": "dolnośląskie",
-        "district": "górowski",
-        "municipality": "Niechlów",
-        "full_name": "woj.: dolnośląskie powiat: górowski gmina: Niechlów"
-    },
-    ...
-]
-```
-
-#### streets_municipality_XXX.json file
-
-```json
-{
-    "municipality_id": "309474",
-    "municipality_name": "Kudowa-Zdrój",
-    "streets": [
-        "1 Maja",
-        "Adama Mickiewicza",
-        ...
-    ],
-    "total_streets": 58
-}
-```
-
-#### schedule_municipality_XXX_YYY.json file
-
-```json
-{
-    "municipality_id": "309707",
-    "street": "Cicha",
-    "retrieval_date": "2025-04-07 12:34:56",
-    "schedule": [
-        {
-            "date": "2025-04-09",
-            "weekday": "środa",
-            "waste_type": "biodegradowalne",
-            "waste_id": "B",
-            "color": "#9F703B"
-        },
-        ...
-    ],
-    "waste_types": {
-        "B": {
-            "name": "biodegradowalne",
-            "dates": [
-                {
-                    "date": "2025-04-09",
-                    "weekday": "środa"
-                },
-                ...
-            ]
-        },
-        ...
-    },
-    "total_dates": 32
-}
-```
-
-### Legend for waste types
-
-- B - biodegradable waste (biodegradowalne)
-- PO - ash (popiół)
-- PL - metals and plastics (metale i tworzywa sztuczne)
-- PA - paper and cardboard (papier i tektura)
-- SZ - glass (szkło)
-- ZM - mixed waste (zmieszane)
+Każda encja

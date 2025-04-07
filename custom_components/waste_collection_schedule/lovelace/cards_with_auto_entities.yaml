@@ -1,0 +1,122 @@
+##########################################################
+#
+# Zaawansowana karta Harmonogramu Wywozu Śmieci
+# Wymaga zainstalowania karty auto-entities przez HACS
+# https://github.com/thomasloven/lovelace-auto-entities
+#
+# UWAGA: Zastąp "your_street" w nazwach encji swoją ulicą
+#
+##########################################################
+
+type: vertical-stack
+cards:
+  # Karta pokazująca najbliższy wywóz
+  - type: custom:mushroom-template-card
+    primary: Następny wywóz śmieci
+    secondary: >
+      {% set next = states('sensor.next_waste_collection_your_street') %}
+      {% set type = state_attr('sensor.next_waste_collection_your_street', 'waste_type') %}
+      {% set days = state_attr('sensor.next_waste_collection_your_street', 'days_until') %}
+      {% if next and type and days %}
+        {{ next }} ({{ type }})
+      {% else %}
+        Brak danych
+      {% endif %}
+    icon: mdi:trash-can-outline
+    icon_color: >
+      {% set days = state_attr('sensor.next_waste_collection_your_street', 'days_until') %}
+      {% if days == 0 %}
+        red
+      {% elif days == 1 %}
+        orange
+      {% elif days <= 3 %}
+        yellow
+      {% else %}
+        blue
+      {% endif %}
+    badge_icon: >
+      {% set days = state_attr('sensor.next_waste_collection_your_street', 'days_until') %}
+      {% if days == 0 %}
+        mdi:bell-ring
+      {% elif days == 1 %}
+        mdi:bell
+      {% else %}
+        mdi:calendar
+      {% endif %}
+    badge_color: >
+      {% set days = state_attr('sensor.next_waste_collection_your_street', 'days_until') %}
+      {% if days == 0 %}
+        red
+      {% elif days == 1 %}
+        orange
+      {% else %}
+        blue
+      {% endif %}
+    picture: >
+      {% set type = state_attr('sensor.next_waste_collection_your_street', 'waste_id') %}
+      /local/images/trash/{{ type }}.png
+    tap_action:
+      action: more-info
+      entity: sensor.next_waste_collection_your_street
+
+  # Karta pokazująca terminy dla różnych typów odpadów
+  - type: custom:auto-entities
+    card:
+      type: glance
+      title: Harmonogram wywozu śmieci
+      show_state: true
+      state_color: true
+      columns: 3
+    filter:
+      include:
+        - entity_id: "sensor.biodegradable_collection_*"
+          options:
+            name: Bio
+            icon: mdi:leaf
+            tap_action:
+              action: more-info
+        - entity_id: "sensor.mixed_collection_*"
+          options:
+            name: Zmieszane
+            icon: mdi:trash-can
+            tap_action:
+              action: more-info
+        - entity_id: "sensor.plastic_and_metal_collection_*"
+          options:
+            name: Plastik i Metal
+            icon: mdi:bottle-soda-outline
+            tap_action:
+              action: more-info
+        - entity_id: "sensor.paper_collection_*"
+          options:
+            name: Papier
+            icon: mdi:file-outline
+            tap_action:
+              action: more-info
+        - entity_id: "sensor.glass_collection_*"
+          options:
+            name: Szkło
+            icon: mdi:bottle-wine
+            tap_action:
+              action: more-info
+        - entity_id: "sensor.ash_collection_*"
+          options:
+            name: Popiół
+            icon: mdi:fire
+            tap_action:
+              action: more-info
+
+  # Karta markdown z tabelą nadchodzących wywozów
+  - type: markdown
+    title: Nadchodzące odbiory
+    content: >
+      {% set collections = state_attr('sensor.next_waste_collection_your_street', 'collections') %}
+      {% if collections %}
+        | Data | Dzień tygodnia | Rodzaj odpadów | Za ile dni |
+        | :--: | :------------: | :------------: | :--------: |
+        {% for collection in collections %}
+        | {{ collection.date }} | {{ collection.weekday }} | {{ collection.waste_type }} | {{ collection.days_until }} |
+        {% endfor %}
+      {% else %}
+        Brak nadchodzących wywozów śmieci.
+      {% endif %}

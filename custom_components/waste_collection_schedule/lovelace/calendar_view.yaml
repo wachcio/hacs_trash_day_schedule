@@ -1,0 +1,80 @@
+##########################################################
+#
+# Kalendarz Harmonogramu Wywozu Śmieci
+# Wymaga zainstalowania Atomic Calendar Revive przez HACS
+# https://github.com/marksie1988/atomic-calendar-revive
+#
+# UWAGA: Zastąp "your_street" w nazwach encji swoją ulicą
+#
+##########################################################
+
+type: vertical-stack
+cards:
+  # Informacje o najbliższym wywozie
+  - type: entities
+    title: Najbliższy wywóz śmieci
+    entities:
+      - entity: sensor.next_waste_collection_your_street
+        name: Następny wywóz
+        secondary_info: attribute
+        secondary_info_attribute: waste_type
+      - type: attribute
+        entity: sensor.next_waste_collection_your_street
+        attribute: days_until
+        name: Dni do wywozu
+        icon: mdi:calendar-clock
+    state_color: true
+
+  # Kalendarz wywozów śmieci
+  - type: custom:atomic-calendar-revive
+    title: Kalendarz wywozów śmieci
+    enableModeChange: true
+    defaultMode: month
+    firstDayOfWeek: 1
+    showWeekNumbers: true
+    hideDuplicates: false
+    maxDaysToShow: 60
+    showProgressBar: true
+    eventBarColor: var(--primary-color)
+    events:
+      - entity: sensor.next_waste_collection_your_street
+        attribute: collections
+        titleTemplate: "{waste_type}"
+        color: >
+          {% if waste_type == "biodegradowalne" %}#9F703B
+          {% elif waste_type == "zmieszane" %}#596D81
+          {% elif waste_type == "metale i tworzywa sztuczne" %}#F9C625
+          {% elif waste_type == "papier i tektura" %}#11ADE4
+          {% elif waste_type == "szkło" %}#7EC451
+          {% elif waste_type == "popiół" %}#626262
+          {% else %}var(--primary-color)
+          {% endif %}
+        icon: >
+          {% if waste_type == "biodegradowalne" %}mdi:leaf
+          {% elif waste_type == "zmieszane" %}mdi:trash-can
+          {% elif waste_type == "metale i tworzywa sztuczne" %}mdi:bottle-soda-outline
+          {% elif waste_type == "papier i tektura" %}mdi:file-outline
+          {% elif waste_type == "szkło" %}mdi:bottle-wine
+          {% elif waste_type == "popiół" %}mdi:fire
+          {% else %}mdi:recycle
+          {% endif %}
+    showLocation: false
+    showMonth: true
+    showCurrentEventLine: true
+    dateColor: var(--primary-text-color)
+    dateSize: 90
+    timeColor: var(--primary-text-color)
+    timeSize: 90
+    titleColor: var(--primary-text-color)
+    titleSize: 100
+    locationIconColor: var(--primary-color)
+    locationLinkColor: var(--primary-color)
+    dimFinishedEvents: true
+    finishedEventOpacity: 0.6
+    dayWrapperLineColor: var(--divider-color)
+    eventBarWidth: 4
+    showDeclined: false
+    showCancelledEvents: false
+    showEventIcon: true
+    startDaysAhead: 0
+    endDaysAhead: 60

@@ -1,0 +1,121 @@
+##########################################################
+#
+# Przykładowe automatyzacje dla Harmonogramu Wywozu Śmieci
+# Skopiuj wybrane automatyzacje do swojego pliku automations.yaml
+# lub dodaj je przez interfejs użytkownika
+#
+# UWAGA: Zastąp "your_street" w nazwach encji swoją ulicą
+#
+##########################################################
+
+# Powiadomienie wieczorne o jutrzejszym wywozie śmieci
+- alias: "Powiadomienie o jutrzejszym wywozie śmieci"
+  description: "Wysyła powiadomienie wieczorem przed dniem wywozu śmieci"
+  trigger:
+    platform: time
+    at: "20:00:00"
+  condition:
+    condition: template
+    value_template: >
+      {% set days_until = state_attr('sensor.next_waste_collection_your_street', 'days_until') %}
+      {{ days_until == 1 }}
+  action:
+    - service: notify.mobile_app_your_phone # Zmień na swój serwis powiadomień
+      data:
+        title: "Przypomnienie o wywozie śmieci"
+        message: >
+          {% set waste_type = state_attr('sensor.next_waste_collection_your_street', 'waste_type') %}
+          Jutro ({{ states('sensor.next_waste_collection_your_street') }}) odbędzie się wywóz śmieci typu: {{ waste_type }}.
+        data:
+          icon: mdi:trash-can
+          color: orange
+          sticky: true
+          tag: waste_collection
+          actions:
+            - action: DISMISS
+              title: "Rozumiem"
+
+# Powiadomienie poranne w dniu wywozu śmieci
+- alias: "Poranne przypomnienie o wywozie śmieci"
+  description: "Wysyła powiadomienie rano w dniu wywozu śmieci"
+  trigger:
+    platform: time
+    at: "07:00:00"
+  condition:
+    condition: template
+    value_template: >
+      {% set days_until = state_attr('sensor.next_waste_collection_your_street', 'days_until') %}
+      {{ days_until == 0 }}
+  action:
+    - service: notify.mobile_app_your_phone # Zmień na swój serwis powiadomień
+      data:
+        title: "⚠️ DZISIAJ WYWÓZ ŚMIECI ⚠️"
+        message: >
+          {% set waste_type = state_attr('sensor.next_waste_collection_your_street', 'waste_type') %}
+          Dzisiaj ({{ states('sensor.next_waste_collection_your_street') }}) odbywa się wywóz śmieci typu: {{ waste_type }}.
+          Pamiętaj, aby wystawić pojemniki!
+        data:
+          icon: mdi:trash-can-outline
+          color: red
+          sticky: true
+          tag: waste_collection
+          priority: high
+          ttl: 43200000 # 12 godzin
+          actions:
+            - action: DISMISS
+              title: "Wystawiłem/am"
+
+# Cotygodniowe podsumowanie nadchodzących wywozów śmieci
+- alias: "Tygodniowe podsumowanie wywozów śmieci"
+  description: "Wysyła co niedzielę podsumowanie wywozów śmieci na nadchodzący tydzień"
+  trigger:
+    platform: time
+    at: "18:00:00"
+  condition:
+    condition: time
+    weekday:
+      - sun
+  action:
+    - service: notify.mobile_app_your_phone # Zmień na swój serwis powiadomień
+      data:
+        title: "Harmonogram wywozu śmieci na nadchodzący tydzień"
+        message: >
+          {% set collections = state_attr('sensor.next_waste_collection_your_street', 'collections') %}
+          {% if collections %}
+            {% set this_week_collections = [] %}
+            {% for collection in collections %}
+              {% if collection.days_until <= 7 %}
+                {% set this_week_collections = this_week_collections + [collection] %}
+              {% endif %}
+            {% endfor %}
+
+            {% if this_week_collections|length > 0 %}
+              W tym tygodniu odbędą się następujące wywozy śmieci:
+
+              {% for collection in this_week_collections %}
+              - {{ collection.date }} ({{ collection.weekday }}): {{ collection.waste_type }}
+              {% endfor %}
+            {% else %}
+              W nadchodzącym tygodniu nie ma planowanych wywozów śmieci.
+            {% endif %}
+          {% else %}
+            Brak danych o nadchodzących wywozach śmieci.
+          {% endif %}
+        data:
+          icon: mdi:calendar-week
+          tag: waste_collection_weekly
+          actions:
+            - action: URI
+              title: "Pokaż harmonogram"
+              uri: "/lovelace/waste_collection" # Zmień na URL do swojego dashboardu z harmonogramem
+
+# Automatyzacja aktualizująca harmonogram o określonej porze
+- alias: "Aktualizacja harmonogramu wywozu śmieci"
+  description: "Codziennie o 1:00 w nocy wymusza aktualizację harmonogramu"
+  trigger:
+    platform: time
+    at: "01:00:00"
+  action:
+    - service: homeassistant.update_entity
+      target:
+        entity_id: sensor.next_waste_collection_your_street
