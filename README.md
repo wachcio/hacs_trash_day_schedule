@@ -1,7 +1,7 @@
 # Integracja Harmonogramu Wywozu Śmieci dla Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
-[![GitHub release](https://img.shields.io/github/release/wachcio/waste_collection_schedule.svg)](https://github.com/YOUR_GITHUB_USERNAME/waste_collection_schedule/releases)
+[![GitHub release](https://img.shields.io/github/release/wachcio/waste_collection_schedule.svg)](https://github.com/wachcio/waste_collection_schedule/releases)
 
 Integracja Home Assistant pobierająca i wyświetlająca harmonogramy wywozu śmieci z serwisu [kiedysmieci.info](https://kiedysmieci.info/).
 
