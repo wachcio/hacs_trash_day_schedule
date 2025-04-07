@@ -1,7 +1,7 @@
-"""Constants for the Waste Collection Schedule integration."""
+"""Constants for the TrashDay integration."""
 from datetime import timedelta
 
-DOMAIN = "waste_collection_schedule"
+DOMAIN = "trash_day"
 
 # Configuration options
 CONF_MUNICIPALITY_ID = "municipality_id"

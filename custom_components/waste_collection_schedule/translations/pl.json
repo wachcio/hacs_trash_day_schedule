@@ -2,7 +2,7 @@
     "config": {
         "step": {
             "user": {
-                "title": "Konfiguracja Harmonogramu Wywozu Śmieci",
+                "title": "Konfiguracja TrashDay",
                 "description": "Połącz z serwisem harmonogramów wywozu śmieci"
             },
             "municipality": {
@@ -33,7 +33,7 @@
     "options": {
         "step": {
             "init": {
-                "title": "Opcje Harmonogramu Wywozu Śmieci",
+                "title": "Opcje TrashDay",
                 "description": "Skonfiguruj częstotliwość aktualizacji i inne opcje",
                 "data": {
                     "scan_interval": "Częstotliwość aktualizacji (minuty)"

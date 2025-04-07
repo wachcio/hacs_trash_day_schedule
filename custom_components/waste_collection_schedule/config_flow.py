@@ -1,4 +1,4 @@
-"""Config flow for Waste Collection Schedule integration."""
+"""Config flow for TrashDay integration."""
 import logging
 import voluptuous as vol
 
@@ -36,7 +36,7 @@ async def _get_streets(hass: HomeAssistant, municipality_id: str):
 
 
 class WasteCollectionFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Waste Collection Schedule."""
+    """Handle a config flow for TrashDay."""
 
     VERSION = 1
 

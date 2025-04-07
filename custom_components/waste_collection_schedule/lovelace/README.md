@@ -1,4 +1,4 @@
-# Karty Lovelace dla integracji Harmonogramu Wywozu Śmieci
+# Karty Lovelace dla integracji TrashDay
 
 Ten katalog zawiera przykładowe karty Lovelace, które możesz użyć do wyświetlenia informacji o harmonogramie wywozu śmieci w interfejsie Home Assistant.
 

@@ -2,7 +2,7 @@
     "config": {
         "step": {
             "user": {
-                "title": "Set up Waste Collection Schedule",
+                "title": "Set up TrashDay",
                 "description": "Connect to the waste collection schedule service"
             },
             "municipality": {
@@ -33,7 +33,7 @@
     "options": {
         "step": {
             "init": {
-                "title": "Waste Collection Schedule Options",
+                "title": "TrashDay Options",
                 "description": "Configure update interval and other options",
                 "data": {
                     "scan_interval": "Update interval (minutes)"

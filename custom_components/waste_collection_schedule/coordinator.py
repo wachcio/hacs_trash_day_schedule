@@ -1,4 +1,4 @@
-"""Data coordinator for Waste Collection Schedule integration."""
+"""Data coordinator for TrashDay integration."""
 import logging
 import asyncio
 from datetime import datetime, date

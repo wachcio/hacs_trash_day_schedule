@@ -1,7 +1,7 @@
-# Integracja Harmonogramu Wywozu Śmieci dla Home Assistant
+# TrashDay - Integracja harmonogramów wywozu śmieci dla Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
-[![GitHub release](https://img.shields.io/github/release/wachcio/waste_collection_schedule.svg)](https://github.com/wachcio/waste_collection_schedule/releases)
+[![GitHub release](https://img.shields.io/github/release/wachcio/hacs_trash_day_schedule.svg)](https://github.com/wachcio/hacs_trash_day_schedule/releases)
 
 Integracja Home Assistant pobierająca i wyświetlająca harmonogramy wywozu śmieci z serwisu [kiedysmieci.info](https://kiedysmieci.info/).
 
@@ -22,24 +22,24 @@ Integracja Home Assistant pobierająca i wyświetlająca harmonogramy wywozu śm
    - Przejdź do HACS -> Integracje
    - Kliknij menu (trzy kropki w prawym górnym rogu)
    - Wybierz "Niestandardowe repozytoria"
-   - Dodaj URL: `https://github.com/YOUR_GITHUB_USERNAME/waste_collection_schedule`
+   - Dodaj URL: `https://github.com/wachcio/hacs_trash_day_schedule`
    - Kategoria: Integracja
-3. Kliknij na "Explore & Download Repositories" i wyszukaj "Waste Collection Schedule"
+3. Kliknij na "Explore & Download Repositories" i wyszukaj "TrashDay"
 4. Kliknij "Pobierz"
 5. Uruchom ponownie Home Assistant
 
 ### Ręcznie
 
-1. Pobierz najnowszą wersję z [strony Releases](https://github.com/YOUR_GITHUB_USERNAME/waste_collection_schedule/releases)
+1. Pobierz najnowszą wersję z [strony Releases](https://github.com/wachcio/hacs_trash_day_schedule/releases)
 2. Rozpakuj zawartość do katalogu `custom_components` w twoim Home Assistant
-   - Upewnij się, że katalog ma nazwę `waste_collection_schedule` (nie `waste_collection_schedule-main` itp.)
+   - Upewnij się, że katalog ma nazwę `trash_day` (nie `hacs_trash_day_schedule-main` itp.)
 3. Uruchom ponownie Home Assistant
 
 ## Konfiguracja
 
 1. Przejdź do Ustawienia -> Urządzenia i usługi
 2. Kliknij przycisk "+ Dodaj integrację" w prawym dolnym rogu
-3. Wyszukaj "Waste Collection Schedule" lub "Harmonogram Wywozu Śmieci"
+3. Wyszukaj "TrashDay" lub "Wywóz śmieci"
 4. Postępuj zgodnie z instrukcjami:
    - Wybierz swoją gminę z listy
    - Wybierz swoją ulicę

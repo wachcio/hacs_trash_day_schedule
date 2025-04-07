@@ -1,4 +1,4 @@
-"""Sensor platform for Waste Collection Schedule integration."""
+"""Sensor platform for TrashDay integration."""
 import logging
 from datetime import datetime, date
 from typing import Any, Dict, List, Optional, Union

@@ -1,14 +1,14 @@
 {
-    "domain": "waste_collection_schedule",
-    "name": "Waste Collection Schedule",
+    "domain": "trash_day",
+    "name": "TrashDay",
     "codeowners": [
-        "@Wachcio"
+        "@wachcio"
     ],
     "config_flow": true,
     "dependencies": [],
-    "documentation": "https://github.com/wachcio/hacs_waste_collection_schedule",
+    "documentation": "https://github.com/wachcio/hacs_trash_day_schedule",
     "iot_class": "cloud_polling",
-    "issue_tracker": "https://github.com/wachcio/hacs_waste_collection_schedule/issues",
+    "issue_tracker": "https://github.com/wachcio/hacs_trash_day_schedule/issues",
     "requirements": [
         "requests>=2.25.1",
         "beautifulsoup4>=4.9.3"

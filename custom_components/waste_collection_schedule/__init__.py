@@ -1,4 +1,4 @@
-"""The Waste Collection Schedule integration."""
+"""The TrashDay integration."""
 import asyncio
 import logging
 from datetime import timedelta
