@@ -1,0 +1,56 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Set up Waste Collection Schedule",
+                "description": "Connect to the waste collection schedule service"
+            },
+            "municipality": {
+                "title": "Select Municipality",
+                "description": "Found {municipality_count} municipalities. Please select your municipality.",
+                "data": {
+                    "municipality_id": "Municipality"
+                }
+            },
+            "street": {
+                "title": "Select Street",
+                "description": "Municipality: {municipality_name}. Found {street_count} streets. Please select your street.",
+                "data": {
+                    "street": "Street"
+                }
+            }
+        },
+        "error": {
+            "no_municipalities": "No municipalities found",
+            "no_streets": "No streets found for this municipality",
+            "cannot_connect": "Failed to connect to the service",
+            "unknown": "Unexpected error"
+        },
+        "abort": {
+            "no_municipalities": "No municipalities available in the service"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Waste Collection Schedule Options",
+                "description": "Configure update interval and other options",
+                "data": {
+                    "scan_interval": "Update interval (minutes)"
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "next_waste_collection": {
+                "name": "Next Waste Collection",
+                "state_attributes": {
+                    "waste_type": "Waste Type",
+                    "days_until": "Days Until Collection",
+                    "collections": "Upcoming Collections"
+                }
+            }
+        }
+    }
+}

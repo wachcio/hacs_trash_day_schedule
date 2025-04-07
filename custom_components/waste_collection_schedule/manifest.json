@@ -1,0 +1,17 @@
+{
+    "domain": "waste_collection_schedule",
+    "name": "Waste Collection Schedule",
+    "codeowners": [
+        "@YOUR_GITHUB_USERNAME"
+    ],
+    "config_flow": true,
+    "dependencies": [],
+    "documentation": "https://github.com/YOUR_GITHUB_USERNAME/waste_collection_schedule",
+    "iot_class": "cloud_polling",
+    "issue_tracker": "https://github.com/YOUR_GITHUB_USERNAME/waste_collection_schedule/issues",
+    "requirements": [
+        "requests>=2.25.1",
+        "beautifulsoup4>=4.9.3"
+    ],
+    "version": "0.1.0"
+}

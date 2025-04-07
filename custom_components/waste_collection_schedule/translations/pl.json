@@ -1,0 +1,56 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Konfiguracja Harmonogramu Wywozu Śmieci",
+                "description": "Połącz z serwisem harmonogramów wywozu śmieci"
+            },
+            "municipality": {
+                "title": "Wybierz Gminę",
+                "description": "Znaleziono {municipality_count} gmin. Wybierz swoją gminę.",
+                "data": {
+                    "municipality_id": "Gmina"
+                }
+            },
+            "street": {
+                "title": "Wybierz Ulicę",
+                "description": "Gmina: {municipality_name}. Znaleziono {street_count} ulic. Wybierz swoją ulicę.",
+                "data": {
+                    "street": "Ulica"
+                }
+            }
+        },
+        "error": {
+            "no_municipalities": "Nie znaleziono gmin",
+            "no_streets": "Nie znaleziono ulic dla tej gminy",
+            "cannot_connect": "Nie udało się połączyć z serwisem",
+            "unknown": "Nieoczekiwany błąd"
+        },
+        "abort": {
+            "no_municipalities": "Brak dostępnych gmin w serwisie"
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Opcje Harmonogramu Wywozu Śmieci",
+                "description": "Skonfiguruj częstotliwość aktualizacji i inne opcje",
+                "data": {
+                    "scan_interval": "Częstotliwość aktualizacji (minuty)"
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "next_waste_collection": {
+                "name": "Następny Wywóz Śmieci",
+                "state_attributes": {
+                    "waste_type": "Rodzaj Odpadów",
+                    "days_until": "Dni do Wywozu",
+                    "collections": "Nadchodzące Wywozy"
+                }
+            }
+        }
+    }
+}
