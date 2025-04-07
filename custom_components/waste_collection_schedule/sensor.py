@@ -1,7 +1,7 @@
 """Sensor platform for Waste Collection Schedule integration."""
 import logging
 from datetime import datetime, date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from homeassistant.components.sensor import (
     SensorEntity,
@@ -88,8 +88,8 @@ class WasteCollectionSensorBase(CoordinatorEntity):
 class NextWasteCollectionSensor(WasteCollectionSensorBase, SensorEntity):
     """Sensor for the next waste collection."""
 
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_device_class = SensorDeviceClass.DATE
+    # Nie używamy state_class dla sensorów z device_class = DATE
 
     def __init__(self, coordinator: WasteCollectionCoordinator, config_entry: ConfigEntry):
         """Initialize the sensor."""
@@ -99,10 +99,11 @@ class NextWasteCollectionSensor(WasteCollectionSensorBase, SensorEntity):
         self._attr_icon = "mdi:trash-can-outline"
 
     @property
-    def native_value(self) -> Optional[str]:
+    def native_value(self) -> Optional[date]:
         """Return the next collection date."""
         if self.coordinator.data and self.coordinator.data.get("next_collection"):
-            return self.coordinator.data["next_collection"]["date"]
+            # Zwracamy obiekt date zamiast stringa
+            return self.coordinator.data["next_collection"]["date_obj"]
         return None
 
     @property
@@ -138,8 +139,8 @@ class NextWasteCollectionSensor(WasteCollectionSensorBase, SensorEntity):
 class WasteTypeSensor(WasteCollectionSensorBase, SensorEntity):
     """Sensor for specific waste type collection."""
 
-    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_device_class = SensorDeviceClass.DATE
+    # Nie używamy state_class dla sensorów z device_class = DATE
 
     def __init__(
         self,
@@ -171,14 +172,16 @@ class WasteTypeSensor(WasteCollectionSensorBase, SensorEntity):
         )
 
     @property
-    def native_value(self) -> Optional[str]:
+    def native_value(self) -> Optional[date]:
         """Return the next collection date for this waste type."""
         if (
             self.coordinator.data
             and self.waste_id in self.coordinator.data["waste_types"]
             and self.coordinator.data["waste_types"][self.waste_id]["next_collection"]
         ):
-            return self.coordinator.data["waste_types"][self.waste_id]["next_collection"]
+            # Konwertujemy string daty na obiekt date
+            date_str = self.coordinator.data["waste_types"][self.waste_id]["next_collection"]
+            return datetime.strptime(date_str, "%Y-%m-%d").date()
         return None
 
     @property

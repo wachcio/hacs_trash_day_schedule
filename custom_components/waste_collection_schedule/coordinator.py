@@ -274,10 +274,11 @@ class WasteCollectionCoordinator(DataUpdateCoordinator):
             types_schedules[waste_id] = {
                 "name": waste_info["name"],
                 "name_pl": waste_info["name_pl"],
-                "dates": [{"date": d["date"], "weekday": d["weekday"]} for d in waste_dates],
+                "dates": [{"date": d["date"], "date_obj": d["date_obj"], "weekday": d["weekday"]} for d in waste_dates],
                 "icon": waste_info["icon"],
                 "color": waste_info["color"],
                 "next_collection": next_collection["date"] if next_collection else None,
+                "next_collection_date_obj": next_collection["date_obj"] if next_collection else None,
                 "next_collection_weekday": next_collection["weekday"] if next_collection else None,
                 "days_until": days_until,
             }
