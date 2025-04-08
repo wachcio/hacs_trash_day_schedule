@@ -1,0 +1,90 @@
+- sensor:
+    - name: "next_days_text"
+      state: >
+        {% set days = state_attr('sensor.next_waste_collection_cicha', 'days_until') %}
+        {% if days == 0 %}
+          Dzisiaj!
+        {% elif days == 1 %}
+          Jutro!
+        {% elif days != None %}
+          Za {{ days }} dni
+        {% else %}
+          Brak danych
+        {% endif %}
+    - name: "bio_days_text"
+      state: >
+        {% set days = state_attr('sensor.biodegradable_collection_cicha', 'days_until') %}
+        {% if days == 0 %}
+          Dzisiaj!
+        {% elif days == 1 %}
+          Jutro!
+        {% elif days != None %}
+          Za {{ days }} dni
+        {% else %}
+          Brak danych
+        {% endif %}
+
+    - name: "mixed_days_text"
+      state: >
+        {% set days = state_attr('sensor.mixed_collection_cicha', 'days_until') %}
+        {% if days == 0 %}
+          Dzisiaj!
+        {% elif days == 1 %}
+          Jutro!
+        {% elif days != None %}
+          Za {{ days }} dni
+        {% else %}
+          Brak danych
+        {% endif %}
+
+    - name: "plastic_days_text"
+      state: >
+        {% set days = state_attr('sensor.plastic_and_metal_collection_cicha', 'days_until') %}
+        {% if days == 0 %}
+          Dzisiaj!
+        {% elif days == 1 %}
+          Jutro!
+        {% elif days != None %}
+          Za {{ days }} dni
+        {% else %}
+          Brak danych
+        {% endif %}
+
+    - name: "paper_days_text"
+      state: >
+        {% set days = state_attr('sensor.paper_collection_cicha', 'days_until') %}
+        {% if days == 0 %}
+          Dzisiaj!
+        {% elif days == 1 %}
+          Jutro!
+        {% elif days != None %}
+          Za {{ days }} dni
+        {% else %}
+          Brak danych
+        {% endif %}
+
+    - name: "glass_days_text"
+      state: >
+        {% set days = state_attr('sensor.glass_collection_cicha', 'days_until') %}
+        {% if days == 0 %}
+          Dzisiaj!
+        {% elif days == 1 %}
+          Jutro!
+        {% elif days != None %}
+          Za {{ days }} dni
+        {% else %}
+          Brak danych
+        {% endif %}
+
+    - name: "ash_days_text"
+      state: >
+        {% set days = state_attr('sensor.ash_collection_cicha', 'days_until') %}
+        {% if days == 0 %}
+          Dzisiaj!
+        {% elif days == 1 %}
+          Jutro!
+        {% elif days != None %}
+          Za {{ days }} dni
+        {% else %}
+          Brak danych
+        {% endif %}
