@@ -103,9 +103,11 @@ async def create_template_sensors(hass, street_name, entry_id, force=False):
             _LOGGER.warning("Templates file not found: %s", template_file)
             return False
 
-        # Load templates file
-        with open(template_file, "r", encoding="utf-8") as file:
-            templates_config = yaml.safe_load(file)
+        # Load templates file - używając async_add_executor_job, aby nie blokować pętli
+        content = await hass.async_add_executor_job(
+            lambda: open(template_file, "r", encoding="utf-8").read()
+        )
+        templates_config = yaml.safe_load(content)
 
         if not templates_config:
             _LOGGER.warning("No templates found in templates file")
@@ -125,32 +127,40 @@ async def create_template_sensors(hass, street_name, entry_id, force=False):
         }
 
         # Create template sensors
-        for template_type, templates in templates_config.items():
-            if template_type == "sensor":
-                for template_id, template_config in templates.items():
-                    # Replace entity IDs in templates
-                    state_template = template_config.get("state_template", "")
-                    for key, entity_id in entities.items():
-                        placeholder = f"ENTITY_{key.upper()}"
-                        state_template = state_template.replace(placeholder, entity_id)
+        for template_def in templates_config[0]['sensor']:
+            # Get template name and configuration
+            template_id = template_def['name']
+            template_state = template_def['state']
+            template_attributes = template_def.get('attributes', {})
 
-                    # Create the template sensor
-                    template_sensor_id = f"trash_day_{street_name}_{template_id}"
-                    sensor_name = template_config.get("friendly_name", template_id.replace("_", " ").title())
+            # Replace entity IDs in templates
+            for key, entity_id in entities.items():
+                placeholder = f"sensor.{key}_collection_cicha"
+                template_state = template_state.replace(placeholder, entity_id)
 
-                    # Register the template sensor
-                    result = await hass.helpers.template.async_register_template_entity(
-                        entry_id,
-                        "sensor",
-                        template_sensor_id,
-                        state_template,
-                        template_config.get("friendly_name", sensor_name),
-                        template_config.get("icon", "mdi:trash-can-outline"),
-                        template_config.get("attribute_templates", {}),
-                        template_config.get("availability_template", None),
-                    )
+                # Update attribute templates
+                for attr_name, attr_value in template_attributes.items():
+                    template_attributes[attr_name] = attr_value.replace(placeholder, entity_id)
 
-                    _LOGGER.debug("Created template sensor: %s", template_sensor_id)
+            # Create the template sensor
+            template_sensor_id = f"trash_day_{street_name}_{template_id}"
+
+            # Remove special characters from ID
+            safe_id = "".join(c if c.isalnum() or c == '_' else '_' for c in template_id)
+
+            # Register the template sensor
+            await hass.helpers.template.async_register_template_entity(
+                entry_id,
+                "sensor",
+                safe_id,
+                template_state,
+                template_id.replace("_", " ").title(),
+                "mdi:trash-can-outline",
+                template_attributes,
+                None
+            )
+
+            _LOGGER.debug("Created template sensor: %s", template_sensor_id)
 
         _LOGGER.info("TrashDay template sensors installed successfully")
         return True
@@ -158,7 +168,6 @@ async def create_template_sensors(hass, street_name, entry_id, force=False):
     except Exception as ex:
         _LOGGER.error("Error creating TrashDay template sensors: %s", ex)
         return False
-
 
 async def update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Update options for existing entry."""
