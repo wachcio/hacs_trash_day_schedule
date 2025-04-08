@@ -85,6 +85,83 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def create_template_sensors(hass, street_name, entry_id, force=False):
     """Create template sensors for trash day data."""
 
+    try:
+        # Create a new YAML file that will be loaded by Home Assistant
+        templates_yaml_path = hass.config.path(f"trash_day_{street_name}_templates.yaml")
+
+        # Check if file already exists and we're not forcing recreation
+        if os.path.exists(templates_yaml_path) and not force:
+            _LOGGER.info("Template YAML file already exists. Skipping creation.")
+            return False
+
+        # Path to templates file
+        template_file = os.path.join(os.path.dirname(__file__), "templates.yaml")
+
+        if not os.path.exists(template_file):
+            _LOGGER.warning("Templates file not found: %s", template_file)
+            return False
+
+        # Load templates file - używając async_add_executor_job, aby nie blokować pętli
+        content = await hass.async_add_executor_job(
+            lambda: open(template_file, "r", encoding="utf-8").read()
+        )
+        templates_config = yaml.safe_load(content)
+
+        if not templates_config:
+            _LOGGER.warning("No templates found in templates file")
+            return False
+
+        # Get entity IDs for this street
+        replacements = {
+            "sensor.biodegradable_collection_cicha": f"sensor.biodegradable_collection_{street_name}",
+            "sensor.mixed_collection_cicha": f"sensor.mixed_collection_{street_name}",
+            "sensor.plastic_and_metal_collection_cicha": f"sensor.plastic_and_metal_collection_{street_name}",
+            "sensor.paper_collection_cicha": f"sensor.paper_collection_{street_name}",
+            "sensor.glass_collection_cicha": f"sensor.glass_collection_{street_name}",
+            "sensor.ash_collection_cicha": f"sensor.ash_collection_{street_name}",
+            "sensor.next_waste_collection_cicha": f"sensor.next_waste_collection_{street_name}"
+        }
+
+        # Process templates content
+        processed_content = content
+        for placeholder, replacement in replacements.items():
+            processed_content = processed_content.replace(placeholder, replacement)
+
+        # Replace template names to include street name
+        modified_templates = []
+        for template_def in templates_config[0]['sensor']:
+            template_copy = template_def.copy()
+            original_name = template_copy['name']
+            template_copy['name'] = f"trash_day_{street_name}_{original_name}"
+            modified_templates.append(template_copy)
+
+        # Create new YAML content
+        new_config = [{'sensor': modified_templates}]
+        new_yaml_content = yaml.dump(new_config, allow_unicode=True, default_flow_style=False)
+
+        # Write the custom template file
+        await hass.async_add_executor_job(
+            lambda: open(templates_yaml_path, "w", encoding="utf-8").write(new_yaml_content)
+        )
+
+        # Create notification for user
+        hass.components.persistent_notification.async_create(
+            f"Template sensors for TrashDay have been created for street {street_name}. "
+            f"To use them, add this line to your configuration.yaml:\n\n"
+            f"template: !include {os.path.basename(templates_yaml_path)}\n\n"
+            f"Then restart Home Assistant.",
+            title="TrashDay Templates Created",
+            notification_id=f"trash_day_templates_{entry_id}"
+        )
+
+        _LOGGER.info("TrashDay template file created: %s", templates_yaml_path)
+        return True
+
+    except Exception as ex:
+        _LOGGER.error("Error creating TrashDay template file: %s", ex, exc_info=True)
+        return False
+    """Create template sensors for trash day data."""
+
     # Check if templates already exist
     existing = [
         entity_id for entity_id in hass.states.async_entity_ids("sensor")
