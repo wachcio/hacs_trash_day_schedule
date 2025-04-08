@@ -86,6 +86,65 @@ async def create_template_sensors(hass, street_name, entry_id, force=False):
     """Create template sensors for trash day data."""
 
     try:
+        # Create a new YAML file in the config directory
+        templates_yaml_path = hass.config.path(f"trash_day_{street_name}_templates.yaml")
+
+        # Check if file already exists and we're not forcing recreation
+        if os.path.exists(templates_yaml_path) and not force:
+            _LOGGER.info("Template YAML file already exists. Skipping creation.")
+            return False
+
+        # Path to templates file
+        template_file = os.path.join(os.path.dirname(__file__), "templates.yaml")
+
+        if not os.path.exists(template_file):
+            _LOGGER.warning("Templates file not found: %s", template_file)
+            return False
+
+        # Load templates file
+        template_content = await hass.async_add_executor_job(
+            lambda: open(template_file, "r", encoding="utf-8").read()
+        )
+
+        # Replace entity names
+        modified_content = template_content
+        replacements = {
+            "biodegradable_collection_cicha": f"biodegradable_collection_{street_name}",
+            "mixed_collection_cicha": f"mixed_collection_{street_name}",
+            "plastic_and_metal_collection_cicha": f"plastic_and_metal_collection_{street_name}",
+            "paper_collection_cicha": f"paper_collection_{street_name}",
+            "glass_collection_cicha": f"glass_collection_{street_name}",
+            "ash_collection_cicha": f"ash_collection_{street_name}",
+            "next_waste_collection_cicha": f"next_waste_collection_{street_name}"
+        }
+
+        for old, new in replacements.items():
+            modified_content = modified_content.replace(old, new)
+
+        # Write the modified content to the new file
+        await hass.async_add_executor_job(
+            lambda: open(templates_yaml_path, "w", encoding="utf-8").write(modified_content)
+        )
+
+        # Create notification for user
+        hass.components.persistent_notification.async_create(
+            f"Template sensors for TrashDay have been created for street {street_name}.\n\n"
+            f"To activate them, add this line to your configuration.yaml file:\n\n"
+            f"template: !include {os.path.basename(templates_yaml_path)}\n\n"
+            f"Then restart Home Assistant.",
+            title="TrashDay Templates Created",
+            notification_id=f"trash_day_templates_{entry_id}"
+        )
+
+        _LOGGER.info("TrashDay template file created: %s", templates_yaml_path)
+        return True
+
+    except Exception as ex:
+        _LOGGER.error("Error creating TrashDay template file: %s", ex)
+        return False
+    """Create template sensors for trash day data."""
+
+    try:
         # Create a new YAML file that will be loaded by Home Assistant
         templates_yaml_path = hass.config.path(f"trash_day_{street_name}_templates.yaml")
 
