@@ -2,7 +2,6 @@
 import asyncio
 import logging
 import os
-import yaml
 from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
@@ -35,129 +34,178 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up TrashDay from a config entry."""
-    municipality_id = entry.data[CONF_MUNICIPALITY_ID]
-    street = entry.data[CONF_STREET]
-    municipality_name = entry.data.get(CONF_MUNICIPALITY_NAME, "Unknown Municipality")
-    update_interval = timedelta(minutes=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL.total_seconds() / 60))
-
-    coordinator = WasteCollectionCoordinator(
-        hass,
-        municipality_id=municipality_id,
-        street=street,
-        update_interval=update_interval,
-    )
-
-    # Fetch initial data
-    await coordinator.async_config_entry_first_refresh()
-
-    if not coordinator.data:
-        raise ConfigEntryNotReady("Failed to fetch initial data")
-
-    hass.data[DOMAIN][entry.entry_id] = coordinator
-
-    # Install template sensors
-    safe_street = street.lower().replace(' ', '_').replace('-', '_')
-    await create_template_sensors(hass, safe_street, entry.entry_id)
-
-    # Register service to install templates
-    @callback
-    def install_template_sensors(call):
-        """Install template sensors for TrashDay."""
-        force = call.data.get("force", False)
-        _LOGGER.info("Installing TrashDay template sensors (force=%s)", force)
-        return asyncio.run_coroutine_threadsafe(
-            create_template_sensors(hass, safe_street, entry.entry_id, force),
-            hass.loop
-        ).result()
-
-    hass.services.async_register(
-        DOMAIN, 'install_template_sensors', install_template_sensors
-    )
-
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    # Setup options update listener
-    entry.async_on_unload(entry.add_update_listener(update_options))
-
-    return True
-
-
-async def create_template_sensors(hass, street_name, entry_id, force=False):
-    """Create template sensors for trash day data."""
     try:
-        # Create a new YAML file in the config directory
-        templates_yaml_path = hass.config.path(f"trash_day_{street_name}_templates.yaml")
+        municipality_id = entry.data[CONF_MUNICIPALITY_ID]
+        street = entry.data[CONF_STREET]
+        municipality_name = entry.data.get(CONF_MUNICIPALITY_NAME, "Unknown Municipality")
 
-        # Check if file already exists and we're not forcing recreation
-        if os.path.exists(templates_yaml_path) and not force:
-            _LOGGER.info("Template YAML file already exists. Skipping creation.")
-            return False
+        # Oblicz interwał aktualizacji
+        scan_interval_minutes = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL.total_seconds() / 60)
+        update_interval = timedelta(minutes=scan_interval_minutes)
 
-        # Path to templates file
-        template_file = os.path.join(os.path.dirname(__file__), "templates.yaml")
-
-        if not os.path.exists(template_file):
-            _LOGGER.warning("Templates file not found: %s", template_file)
-            return False
-
-        # Load templates file
-        content = await hass.async_add_executor_job(
-            lambda: open(template_file, "r", encoding="utf-8").read()
+        # Utwórz koordynatora
+        coordinator = WasteCollectionCoordinator(
+            hass,
+            municipality_id=municipality_id,
+            street=street,
+            update_interval=update_interval,
         )
 
-        # Try to load YAML content to validate it
-        try:
-            templates_config = yaml.safe_load(content)
-            if not templates_config:
-                _LOGGER.warning("No templates found in templates file")
-                return False
-        except yaml.YAMLError as exc:
-            _LOGGER.error(f"Error parsing templates.yaml: {exc}")
-            return False
+        # Fetch initial data
+        await coordinator.async_config_entry_first_refresh()
 
-        # Get entity IDs for this street
-        replacements = {
-            "sensor.biodegradable_collection_cicha": f"sensor.biodegradable_collection_{street_name}",
-            "sensor.mixed_collection_cicha": f"sensor.mixed_collection_{street_name}",
-            "sensor.plastic_and_metal_collection_cicha": f"sensor.plastic_and_metal_collection_{street_name}",
-            "sensor.paper_collection_cicha": f"sensor.paper_collection_{street_name}",
-            "sensor.glass_collection_cicha": f"sensor.glass_collection_{street_name}",
-            "sensor.ash_collection_cicha": f"sensor.ash_collection_{street_name}",
-            "sensor.next_waste_collection_cicha": f"sensor.next_waste_collection_{street_name}"
-        }
+        # Sprawdź dane, nawet puste dane są OK, ale błąd nie
+        if coordinator.last_update_success is False:
+            raise ConfigEntryNotReady("Failed to fetch initial data")
 
-        # Process templates content
-        processed_content = content
-        for placeholder, replacement in replacements.items():
-            processed_content = processed_content.replace(placeholder, replacement)
+        hass.data[DOMAIN][entry.entry_id] = coordinator
 
-        # Replace template names to include street name
-        for template_def in templates_config[0]['sensor']:
-            original_name = template_def['name']
-            new_name = f"trash_day_{street_name}_{original_name}"
-            processed_content = processed_content.replace(f"name: \"{original_name}\"", f"name: \"{new_name}\"")
-            processed_content = processed_content.replace(f"name: '{original_name}'", f"name: '{new_name}'")
+        # Setup platforms
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-        # Write the custom template file
-        await hass.async_add_executor_job(
-            lambda: open(templates_yaml_path, "w", encoding="utf-8").write(processed_content)
+        # Setup options update listener
+        entry.async_on_unload(entry.add_update_listener(update_options))
+
+        # Utwórz funkcję serwisową do tworzenia szablonów
+        @callback
+        def install_template_sensors(call):
+            """Install template sensors for TrashDay."""
+            try:
+                force = call.data.get("force", False)
+                _LOGGER.info("Installing TrashDay template sensors (force=%s)", force)
+
+                # Przygotuj nazwę ulicy bezpieczną dla nazwy pliku
+                safe_street = street.lower().replace(' ', '_').replace('-', '_')
+
+                # Utwórz plik szablonu
+                template_path = hass.config.path(f"trash_day_{safe_street}_templates.yaml")
+
+                # Zawartość szablonu
+                template_content = """
+- sensor:
+    - name: "trash_day_{street}_next_days_text"
+      state: >
+        {{% set days = state_attr('sensor.next_waste_collection_{street}', 'days_until') %}}
+        {{% if days == 0 %}}
+          Dzisiaj!
+        {{% elif days == 1 %}}
+          Jutro!
+        {{% elif days != None %}}
+          Za {{{{ days }}}} dni
+        {{% else %}}
+          Brak danych
+        {{% endif %}}
+
+    - name: "trash_day_{street}_bio_days_text"
+      state: >
+        {{% set days = state_attr('sensor.biodegradable_collection_{street}', 'days_until') %}}
+        {{% if days == 0 %}}
+          Dzisiaj!
+        {{% elif days == 1 %}}
+          Jutro!
+        {{% elif days != None %}}
+          Za {{{{ days }}}} dni
+        {{% else %}}
+          Brak danych
+        {{% endif %}}
+
+    - name: "trash_day_{street}_mixed_days_text"
+      state: >
+        {{% set days = state_attr('sensor.mixed_collection_{street}', 'days_until') %}}
+        {{% if days == 0 %}}
+          Dzisiaj!
+        {{% elif days == 1 %}}
+          Jutro!
+        {{% elif days != None %}}
+          Za {{{{ days }}}} dni
+        {{% else %}}
+          Brak danych
+        {{% endif %}}
+
+    - name: "trash_day_{street}_plastic_days_text"
+      state: >
+        {{% set days = state_attr('sensor.plastic_and_metal_collection_{street}', 'days_until') %}}
+        {{% if days == 0 %}}
+          Dzisiaj!
+        {{% elif days == 1 %}}
+          Jutro!
+        {{% elif days != None %}}
+          Za {{{{ days }}}} dni
+        {{% else %}}
+          Brak danych
+        {{% endif %}}
+
+    - name: "trash_day_{street}_paper_days_text"
+      state: >
+        {{% set days = state_attr('sensor.paper_collection_{street}', 'days_until') %}}
+        {{% if days == 0 %}}
+          Dzisiaj!
+        {{% elif days == 1 %}}
+          Jutro!
+        {{% elif days != None %}}
+          Za {{{{ days }}}} dni
+        {{% else %}}
+          Brak danych
+        {{% endif %}}
+
+    - name: "trash_day_{street}_glass_days_text"
+      state: >
+        {{% set days = state_attr('sensor.glass_collection_{street}', 'days_until') %}}
+        {{% if days == 0 %}}
+          Dzisiaj!
+        {{% elif days == 1 %}}
+          Jutro!
+        {{% elif days != None %}}
+          Za {{{{ days }}}} dni
+        {{% else %}}
+          Brak danych
+        {{% endif %}}
+
+    - name: "trash_day_{street}_ash_days_text"
+      state: >
+        {{% set days = state_attr('sensor.ash_collection_{street}', 'days_until') %}}
+        {{% if days == 0 %}}
+          Dzisiaj!
+        {{% elif days == 1 %}}
+          Jutro!
+        {{% elif days != None %}}
+          Za {{{{ days }}}} dni
+        {{% else %}}
+          Brak danych
+        {{% endif %}}
+""".format(street=safe_street)
+
+                # Check if file exists and we don't want to force overwrite
+                if os.path.exists(template_path) and not force:
+                    _LOGGER.info("Template file already exists: %s", template_path)
+                    return
+
+                # Write the file
+                with open(template_path, "w", encoding="utf-8") as f:
+                    f.write(template_content)
+
+                # Create notification for user
+                hass.components.persistent_notification.async_create(
+                    f"Template sensors for TrashDay have been created for street {street}. "
+                    f"To activate them, add this line to your configuration.yaml file:\n\n"
+                    f"template: !include {os.path.basename(template_path)}\n\n"
+                    f"Then restart Home Assistant.",
+                    title="TrashDay Templates Created",
+                    notification_id=f"trash_day_templates_{entry.entry_id}"
+                )
+
+                _LOGGER.info("TrashDay template file created: %s", template_path)
+            except Exception as e:
+                _LOGGER.error("Error creating templates: %s", e, exc_info=True)
+
+        # Rejestracja serwisu
+        hass.services.async_register(
+            DOMAIN, 'install_template_sensors', install_template_sensors
         )
 
-        # Create notification for user
-        hass.components.persistent_notification.async_create(
-            f"Template sensors for TrashDay have been created for street {street_name}. "
-            f"To activate them, add this line to your configuration.yaml file:\n\n"
-            f"template: !include {os.path.basename(templates_yaml_path)}\n\n"
-            f"Then restart Home Assistant.",
-            title="TrashDay Templates Created",
-            notification_id=f"trash_day_templates_{entry_id}"
-        )
-
-        _LOGGER.info("TrashDay template file created: %s", templates_yaml_path)
         return True
-
-    except Exception as ex:
-        _LOGGER.error("Error creating TrashDay template file: %s", ex, exc_info=True)
+    except Exception as e:
+        _LOGGER.error("Error setting up TrashDay: %s", e, exc_info=True)
         return False
 
 

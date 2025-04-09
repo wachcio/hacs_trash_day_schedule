@@ -27,12 +27,20 @@ _LOGGER = logging.getLogger(__name__)
 
 async def _get_municipalities(hass: HomeAssistant):
     """Get list of municipalities."""
-    return await WasteCollectionCoordinator.get_municipalities(hass)
+    try:
+        return await WasteCollectionCoordinator.get_municipalities(hass)
+    except Exception as e:
+        _LOGGER.error("Error getting municipalities: %s", e)
+        return []
 
 
 async def _get_streets(hass: HomeAssistant, municipality_id: str):
     """Get list of streets for municipality."""
-    return await WasteCollectionCoordinator.get_streets(hass, municipality_id)
+    try:
+        return await WasteCollectionCoordinator.get_streets(hass, municipality_id)
+    except Exception as e:
+        _LOGGER.error("Error getting streets: %s", e)
+        return {"streets": [], "municipality_name": "Unknown"}
 
 
 class WasteCollectionFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
@@ -77,8 +85,17 @@ class WasteCollectionFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 return await self.async_step_street()
 
         # Prepare municipality dropdown options
-        municipality_options = {m["id"]: f"{m['municipality']} ({m['district']}, {m['province']})"
-                               for m in self._municipalities}
+        municipality_options = {}
+        for m in self._municipalities:
+            try:
+                key = m["id"]
+                value = f"{m['municipality']} ({m['district']}, {m['province']})"
+                municipality_options[key] = value
+            except (KeyError, TypeError):
+                _LOGGER.error("Invalid municipality data: %s", m)
+
+        if not municipality_options:
+            return self.async_abort(reason="no_municipalities")
 
         schema = vol.Schema(
             {
@@ -99,7 +116,7 @@ class WasteCollectionFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle street selection step."""
         errors = {}
 
-        municipality_name = self._streets_data["municipality_name"]
+        municipality_name = self._streets_data.get("municipality_name", "Unknown")
 
         if user_input is not None:
             selected_street = user_input[CONF_STREET]
@@ -115,7 +132,12 @@ class WasteCollectionFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         # Prepare street dropdown options
-        street_options = {s: s for s in self._streets_data["streets"]}
+        street_options = {}
+        for s in self._streets_data.get("streets", []):
+            street_options[s] = s
+
+        if not street_options:
+            return self.async_abort(reason="no_streets")
 
         schema = vol.Schema(
             {
@@ -129,7 +151,7 @@ class WasteCollectionFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={
                 "municipality_name": municipality_name,
-                "street_count": str(len(self._streets_data["streets"]))
+                "street_count": str(len(self._streets_data.get("streets", [])))
             }
         )
 
@@ -152,12 +174,23 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
+        # Get default scan interval
+        default_scan_interval = self.config_entry.options.get(
+            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL.total_seconds() / 60
+        )
+
+        # Ensure it's a valid positive integer
+        try:
+            default_scan_interval = int(default_scan_interval)
+            if default_scan_interval <= 0:
+                default_scan_interval = int(DEFAULT_SCAN_INTERVAL.total_seconds() / 60)
+        except (ValueError, TypeError):
+            default_scan_interval = int(DEFAULT_SCAN_INTERVAL.total_seconds() / 60)
+
         options = {
             vol.Optional(
                 CONF_SCAN_INTERVAL,
-                default=self.config_entry.options.get(
-                    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL.total_seconds() / 60
-                ),
+                default=default_scan_interval,
             ): cv.positive_int,
         }
 
