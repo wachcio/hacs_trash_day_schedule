@@ -117,10 +117,16 @@ class WasteCollectionCoordinator(DataUpdateCoordinator):
 
         # Get municipality name
         try:
-            header_text = soup.find("h4").text
-            municipality_name = re.search(
-                r"dla gminy: ([\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ\s\-]+)", header_text
-            ).group(1).strip()
+            header = soup.find("h4")
+            if header:
+                header_text = header.text
+                match = re.search(r"dla gminy: ([\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ\s\-]+)", header_text)
+                if match:
+                    municipality_name = match.group(1).strip()
+                else:
+                    municipality_name = "Unknown municipality"
+            else:
+                municipality_name = "Unknown municipality"
         except (AttributeError, IndexError):
             municipality_name = "Unknown municipality"
             _LOGGER.warning("Could not find municipality name")
@@ -210,10 +216,19 @@ class WasteCollectionCoordinator(DataUpdateCoordinator):
             try:
                 # Get side color
                 side = card.find("div", class_="bok")
-                color = side.get("style").split("background-color:")[1].strip(";").strip()
+                if not side or not side.get("style"):
+                    continue
+
+                style_attr = side.get("style", "")
+                color_match = re.search(r"background-color:(.*?);", style_attr)
+                color = color_match.group(1).strip() if color_match else ""
 
                 # Get date
-                date_text = card.find("div", class_="naglowek").text.strip()
+                date_header = card.find("div", class_="naglowek")
+                if not date_header:
+                    continue
+
+                date_text = date_header.text.strip()
                 date_match = re.search(r"(\d{4}-\d{2}-\d{2})", date_text)
                 date_str = date_match.group(1) if date_match else None
 
@@ -222,32 +237,34 @@ class WasteCollectionCoordinator(DataUpdateCoordinator):
                 weekday = weekday_match.group(1) if weekday_match else None
 
                 # Get waste type
-                waste_type = card.find("div", class_="srodek").find("h3").text.strip()
+                content = card.find("div", class_="srodek")
+                if not content:
+                    continue
 
-                # Verify color and waste type consistency
-                expected_type = color_mapping.get(color, {}).get("name")
-                if expected_type and expected_type != waste_type:
-                    _LOGGER.warning(
-                        "Color %s usually means %s, but found %s",
-                        color,
-                        expected_type,
-                        waste_type,
-                    )
+                title = content.find("h3")
+                if not title:
+                    continue
+
+                waste_type = title.text.strip()
 
                 # Assign waste type ID
                 waste_id = waste_type_to_id.get(waste_type, "")
 
                 # Add date to list
                 if date_str:
-                    date_entry = {
-                        "date": date_str,
-                        "date_obj": datetime.strptime(date_str, "%Y-%m-%d").date(),
-                        "weekday": weekday,
-                        "waste_type": waste_type,
-                        "waste_id": waste_id,
-                        "color": color,
-                    }
-                    dates.append(date_entry)
+                    try:
+                        date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+                        date_entry = {
+                            "date": date_str,
+                            "date_obj": date_obj,
+                            "weekday": weekday,
+                            "waste_type": waste_type,
+                            "waste_id": waste_id,
+                            "color": color,
+                        }
+                        dates.append(date_entry)
+                    except ValueError as date_error:
+                        _LOGGER.error("Invalid date format: %s - %s", date_str, date_error)
 
             except Exception as e:
                 _LOGGER.error("Error processing date card: %s", e)
