@@ -1,0 +1,213 @@
+type: vertical-stack
+cards:
+  - type: custom:button-card
+    entity: sensor.next_waste_collection_cicha
+    name: Najbliższy wywóz śmieci
+    icon: mdi:trash-can-outline
+    size: 15%
+    layout: name_state
+    styles:
+      card:
+        - padding: 16px
+        - border-radius: 10px
+      name:
+        - font-size: 18px
+        - font-weight: bold
+        - padding-bottom: 10px
+    state:
+      - value: unknown
+        name: Brak danych
+      - operator: default
+        name: |
+          [[[
+            const days = entity.attributes.days_until;
+            const type = entity.attributes.waste_type;
+            if (days === 0) return `Dzisiaj! - ${type}`;
+            if (days === 1) return `Jutro! - ${type}`;
+            if (days !== null && days !== undefined) return `Za ${days} dni - ${type}`;
+            return "Brak danych";
+          ]]]
+  - type: entities
+    title: Rodzaje odpadów
+    icon: mdi:recycle
+    entities:
+      - type: custom:button-card
+        entity: sensor.biodegradable_collection_cicha
+        name: Biodegradowalne (BIO)
+        icon: mdi:leaf
+        tap_action:
+          action: more-info
+        styles:
+          grid:
+            - grid-template-areas: '"i n s"'
+            - grid-template-columns: 40px 1fr auto
+            - grid-template-rows: auto
+          card:
+            - padding: 12px
+            - border-radius: 8px
+          name:
+            - justify-content: space-between
+            - text-align: justify
+            - justify-self: auto
+            - display: flex
+            - width: 100%
+        state:
+          - operator: default
+            name: |
+              [[[
+                const days = entity.attributes.days_until;
+                if (days === 0) return "<span>Biodegradowalne (BIO)</span><span>Dzisiaj!</span>";
+                if (days === 1) return "<span>Biodegradowalne (BIO)</span><span>Jutro!</span>";
+                if (days !== null && days !== undefined) return `<span>Biodegradowalne (BIO)</span><span>Za ${days} dni</span>`;
+                return "<span>Biodegradowalne (BIO)</span><span>Brak danych</span>";
+              ]]]
+      - type: custom:button-card
+        entity: sensor.mixed_collection_cicha
+        name: Zmieszane
+        icon: mdi:trash-can
+        tap_action:
+          action: more-info
+        styles:
+          grid:
+            - grid-template-areas: '"i n s"'
+            - grid-template-columns: 40px 1fr auto
+            - grid-template-rows: auto
+          card:
+            - padding: 12px
+            - border-radius: 8px
+          name:
+            - justify-content: space-between
+            - text-align: justify
+            - justify-self: auto
+            - display: flex
+            - width: 100%
+        state:
+          - operator: default
+            name: |
+              [[[
+                const days = entity.attributes.days_until;
+                if (days === 0) return "<span>Zmieszane</span><span>Dzisiaj!</span>";
+                if (days === 1) return "<span>Zmieszane</span><span>Jutro!</span>";
+                if (days !== null && days !== undefined) return `<span>Zmieszane</span><span>Za ${days} dni</span>`;
+                return "<span>Zmieszane</span><span>Brak danych</span>";
+              ]]]
+      - type: custom:button-card
+        entity: sensor.plastic_and_metal_collection_cicha
+        name: Plastik i Metal
+        icon: mdi:bottle-soda-outline
+        tap_action:
+          action: more-info
+        styles:
+          grid:
+            - grid-template-areas: '"i n s"'
+            - grid-template-columns: 40px 1fr auto
+            - grid-template-rows: auto
+          card:
+            - padding: 12px
+            - border-radius: 8px
+          name:
+            - justify-content: space-between
+            - text-align: justify
+            - justify-self: auto
+            - display: flex
+            - width: 100%
+        state:
+          - operator: default
+            name: |
+              [[[
+                const days = entity.attributes.days_until;
+                if (days === 0) return "<span>Plastik i Metal</span><span>Dzisiaj!</span>";
+                if (days === 1) return "<span>Plastik i Metal</span><span>Jutro!</span>";
+                if (days !== null && days !== undefined) return `<span>Plastik i Metal</span><span>Za ${days} dni</span>`;
+                return "<span>Plastik i Metal</span><span>Brak danych</span>";
+              ]]]
+      - type: custom:button-card
+        entity: sensor.paper_collection_cicha
+        name: Papier
+        icon: mdi:file-outline
+        tap_action:
+          action: more-info
+        styles:
+          grid:
+            - grid-template-areas: '"i n s"'
+            - grid-template-columns: 40px 1fr auto
+            - grid-template-rows: auto
+          card:
+            - padding: 12px
+            - border-radius: 8px
+          name:
+            - justify-content: space-between
+            - text-align: justify
+            - justify-self: auto
+            - display: flex
+            - width: 100%
+        state:
+          - operator: default
+            name: |
+              [[[
+                const days = entity.attributes.days_until;
+                if (days === 0) return "<span>Papier</span><span>Dzisiaj!</span>";
+                if (days === 1) return "<span>Papier</span><span>Jutro!</span>";
+                if (days !== null && days !== undefined) return `<span>Papier</span><span>Za ${days} dni</span>`;
+                return "<span>Papier</span><span>Brak danych</span>";
+              ]]]
+      - type: custom:button-card
+        entity: sensor.glass_collection_cicha
+        name: Szkło
+        icon: mdi:bottle-wine
+        tap_action:
+          action: more-info
+        styles:
+          grid:
+            - grid-template-areas: '"i n s"'
+            - grid-template-columns: 40px 1fr auto
+            - grid-template-rows: auto
+          card:
+            - padding: 12px
+            - border-radius: 8px
+          name:
+            - justify-content: space-between
+            - text-align: justify
+            - justify-self: auto
+            - display: flex
+            - width: 100%
+        state:
+          - operator: default
+            name: |
+              [[[
+                const days = entity.attributes.days_until;
+                if (days === 0) return "<span>Szkło</span><span>Dzisiaj!</span>";
+                if (days === 1) return "<span>Szkło</span><span>Jutro!</span>";
+                if (days !== null && days !== undefined) return `<span>Szkło</span><span>Za ${days} dni</span>`;
+                return "<span>Szkło</span><span>Brak danych</span>";
+              ]]]
+      - type: custom:button-card
+        entity: sensor.ash_collection_cicha
+        name: Popiół
+        icon: mdi:fire
+        tap_action:
+          action: more-info
+        styles:
+          grid:
+            - grid-template-areas: '"i n s"'
+            - grid-template-columns: 40px 1fr auto
+            - grid-template-rows: auto
+          card:
+            - padding: 12px
+            - border-radius: 8px
+          name:
+            - justify-content: space-between
+            - text-align: justify
+            - justify-self: auto
+            - display: flex
+            - width: 100%
+        state:
+          - operator: default
+            name: |
+              [[[
+                const days = entity.attributes.days_until;
+                if (days === 0) return "<span>Popiół</span><span>Dzisiaj!</span>";
+                if (days === 1) return "<span>Popiół</span><span>Jutro!</span>";
+                if (days !== null && days !== undefined) return `<span>Popiół</span><span>Za ${days} dni</span>`;
+                return "<span>Popiół</span><span>Brak danych</span>";
+              ]]]
