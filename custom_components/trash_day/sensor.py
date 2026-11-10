@@ -79,7 +79,7 @@ class WasteCollectionSensorBase(CoordinatorEntity):
             name=f"Waste Collection - {self.municipality_name}",
             manufacturer="kiedysmieci.info",
             model="Waste Collection Schedule",
-            sw_version="0.1.0",
+            sw_version="0.2.0",
         )
 
 

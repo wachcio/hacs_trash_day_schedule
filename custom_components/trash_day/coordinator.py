@@ -5,12 +5,12 @@ from datetime import datetime, date
 import aiohttp
 from urllib.parse import quote
 from bs4 import BeautifulSoup
+import json
 import re
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from .const import (
     DOMAIN,
@@ -21,6 +21,38 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+MUNICIPALITY_RE = re.compile(
+    r"woj\.:\s*(.+?)\s+powiat:\s*(.+?)\s+gmina:\s*(.+)$", re.IGNORECASE
+)
+
+# Kolor frakcji -> ID (używany, gdy nazwa frakcji nie zostanie rozpoznana)
+COLOR_TO_ID = {
+    "#9F703B": "B",
+    "#596D81": "ZM",
+    "#F9C625": "PL",
+    "#11ADE4": "PA",
+    "#7EC451": "SZ",
+    "#626262": "PO",
+}
+
+
+def waste_id_from_name(name: str, color: str = "") -> str:
+    """Map waste fraction name (which differs between municipalities) to ID."""
+    n = (name or "").lower()
+    if "zmiesz" in n:
+        return "ZM"
+    if "bio" in n:
+        return "B"
+    if "metal" in n or "tworzyw" in n or "plastik" in n:
+        return "PL"
+    if "papier" in n or "tektur" in n:
+        return "PA"
+    if "szkło" in n or "szklo" in n:
+        return "SZ"
+    if "popiół" in n or "popiol" in n:
+        return "PO"
+    return COLOR_TO_ID.get((color or "").strip().upper(), "")
 
 
 class WasteCollectionCoordinator(DataUpdateCoordinator):
@@ -58,43 +90,51 @@ class WasteCollectionCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Error fetching municipalities: %s", error)
             return []
 
-        # Parse HTML
-        soup = BeautifulSoup(html, "html.parser")
-        select_element = soup.find("select", id="selGmina")
+        raw = []
 
-        if not select_element:
-            _LOGGER.error("Could not find select element with id='selGmina'")
+        # Nowa wersja strony: lista gmin jako JSON w skrypcie (const bazyGmin = [...])
+        js_match = re.search(r"bazyGmin\s*=\s*(\[.*?\])\s*;", html, re.S)
+        if js_match:
+            try:
+                raw = [
+                    (str(item.get("id", "")), str(item.get("name", "")).strip())
+                    for item in json.loads(js_match.group(1))
+                ]
+            except (ValueError, AttributeError) as err:
+                _LOGGER.error("Could not parse municipality list: %s", err)
+
+        # Stara wersja strony: <select id="selGmina">
+        if not raw:
+            soup = BeautifulSoup(html, "html.parser")
+            select_element = soup.find("select", id="selGmina")
+            if select_element:
+                raw = [
+                    (option.get("value"), option.text.strip())
+                    for option in select_element.find_all("option")
+                ]
+
+        if not raw:
+            _LOGGER.error("Could not find municipality list on %s", MUNICIPALITY_URL)
             return []
 
-        options = select_element.find_all("option")
         municipalities = []
-
-        # Parse each option
-        for option in options:
-            value = option.get("value")
-            if not value:  # Skip empty or default option
+        for value, text in raw:
+            if not value:
                 continue
-
-            text = option.text.strip()
-            match = re.search(
-                r"woj\.: ([\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ\s\-]+) powiat: ([\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ\s\-]+) gmina: ([\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ\s\-]+)",
-                text,
-            )
-
+            match = MUNICIPALITY_RE.search(text)
             if match:
-                province = match.group(1).strip()
-                district = match.group(2).strip()
-                municipality = match.group(3).strip()
-
-                municipalities.append(
-                    {
-                        "id": value,
-                        "province": province,
-                        "district": district,
-                        "municipality": municipality,
-                        "full_name": text,
-                    }
-                )
+                province, district, municipality = (g.strip() for g in match.groups())
+            else:
+                province, district, municipality = "", "", text
+            municipalities.append(
+                {
+                    "id": value,
+                    "province": province,
+                    "district": district,
+                    "municipality": municipality,
+                    "full_name": text,
+                }
+            )
 
         return municipalities
 
@@ -116,43 +156,35 @@ class WasteCollectionCoordinator(DataUpdateCoordinator):
         soup = BeautifulSoup(html, "html.parser")
 
         # Get municipality name
-        try:
-            header = soup.find("h4")
-            if header:
-                header_text = header.text
-                match = re.search(r"dla gminy: ([\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ\s\-]+)", header_text)
-                if match:
-                    municipality_name = match.group(1).strip()
-                else:
-                    municipality_name = "Unknown municipality"
-            else:
-                municipality_name = "Unknown municipality"
-        except (AttributeError, IndexError):
-            municipality_name = "Unknown municipality"
-            _LOGGER.warning("Could not find municipality name")
+        municipality_name = "Unknown municipality"
+        subtitle = soup.find("div", class_="header-subtitle")
+        header = soup.find("h4")
+        if subtitle and "gmina" in subtitle.text.lower():
+            municipality_name = re.sub(r"^\s*gmina:\s*", "", subtitle.text, flags=re.I).strip()
+        elif header:
+            match = re.search(r"dla gminy:\s*(.+)", header.text)
+            if match:
+                municipality_name = match.group(1).strip()
 
-        # Find the streets select element
-        select_element = soup.find("select", id="selUlica")
+        # Find the streets select element (selUlica / selUlica_ukryty)
+        select_element = soup.find("select", id=re.compile(r"^selUlica"))
 
         if not select_element:
-            _LOGGER.error("Could not find select element with id='selUlica'")
+            _LOGGER.error("Could not find streets select element")
             return {"streets": [], "municipality_name": municipality_name}
 
-        options = select_element.find_all("option")
         streets = []
-
-        # Parse each option
-        for option in options:
-            # Skip the hidden default option
+        for option in select_element.find_all("option"):
+            # Skip the hidden/default option
             if (
                 option.has_attr("hidden")
                 or option.has_attr("disabled")
-                or option.has_attr("selected")
+                or option.get("value") == ""
             ):
                 continue
-
             street_name = option.text.strip()
-            streets.append(street_name)
+            if street_name and street_name not in streets:
+                streets.append(street_name)
 
         return {
             "streets": streets,
@@ -163,9 +195,10 @@ class WasteCollectionCoordinator(DataUpdateCoordinator):
         """Fetch data from API."""
         try:
             return await self._fetch_schedule()
-        except Exception as err:
-            _LOGGER.error("Error fetching schedule: %s", err)
+        except UpdateFailed:
             raise
+        except Exception as err:
+            raise UpdateFailed(f"Error fetching schedule: {err}") from err
 
     async def _fetch_schedule(self):
         """Fetch waste collection schedule."""
@@ -178,96 +211,86 @@ class WasteCollectionCoordinator(DataUpdateCoordinator):
             async with self.session.get(url) as response:
                 response.raise_for_status()
                 html = await response.text()
-        except (aiohttp.ClientError) as error:
-            _LOGGER.error("Error fetching schedule: %s", error)
-            return {"schedule": [], "waste_types": {}}
+        except (aiohttp.ClientError, asyncio.TimeoutError) as error:
+            raise UpdateFailed(f"Error fetching schedule: {error}") from error
 
         # Parse HTML
         soup = BeautifulSoup(html, "html.parser")
 
-        # List for schedule data
         dates = []
 
-        # Finding all cards with dates
-        date_cards = soup.find_all("div", class_="termin card")
+        # Każdy wpis: (tekst daty, nazwa frakcji, kolor)
+        entries = []
 
-        # Color to waste type mapping (for verification)
-        color_mapping = {
-            "#9F703B": {"name": "biodegradowalne", "id": "B"},
-            "#596D81": {"name": "zmieszane", "id": "ZM"},
-            "#F9C625": {"name": "metale i tworzywa sztuczne", "id": "PL"},
-            "#11ADE4": {"name": "papier i tektura", "id": "PA"},
-            "#7EC451": {"name": "szkło", "id": "SZ"},
-            "#626262": {"name": "popiół", "id": "PO"},
-        }
+        # Nowa wersja strony: <div class="schedule-card">
+        for card in soup.find_all("div", class_="schedule-card"):
+            date_el = card.find("div", class_="info-full-date")
+            name_el = card.find("div", class_="info-fraction-name")
+            if not date_el or not name_el:
+                continue
+            color_match = re.search(r"border-left-color:\s*(#[0-9A-Fa-f]{3,8})", card.get("style", ""))
+            entries.append(
+                (
+                    date_el.text.strip(),
+                    name_el.text.strip(),
+                    color_match.group(1) if color_match else "",
+                )
+            )
 
-        # Waste type to ID mapping
-        waste_type_to_id = {
-            "biodegradowalne": "B",
-            "zmieszane": "ZM",
-            "metale i tworzywa sztuczne": "PL",
-            "papier i tektura": "PA",
-            "szkło": "SZ",
-            "popiół": "PO",
-        }
-
-        # Parse each date card
-        for card in date_cards:
-            try:
-                # Get side color
+        # Stara wersja strony: <div class="termin card">
+        if not entries:
+            for card in soup.find_all("div", class_="termin card"):
                 side = card.find("div", class_="bok")
-                if not side or not side.get("style"):
-                    continue
-
-                style_attr = side.get("style", "")
-                color_match = re.search(r"background-color:(.*?);", style_attr)
-                color = color_match.group(1).strip() if color_match else ""
-
-                # Get date
                 date_header = card.find("div", class_="naglowek")
-                if not date_header:
-                    continue
-
-                date_text = date_header.text.strip()
-                date_match = re.search(r"(\d{4}-\d{2}-\d{2})", date_text)
-                date_str = date_match.group(1) if date_match else None
-
-                # Get weekday
-                weekday_match = re.search(r"\((.*?)\)", date_text)
-                weekday = weekday_match.group(1) if weekday_match else None
-
-                # Get waste type
                 content = card.find("div", class_="srodek")
-                if not content:
+                title = content.find("h3") if content else None
+                if not date_header or not title:
                     continue
+                color_match = re.search(r"background-color:(.*?);", side.get("style", "") if side else "")
+                entries.append(
+                    (
+                        date_header.text.strip(),
+                        title.text.strip(),
+                        color_match.group(1).strip() if color_match else "",
+                    )
+                )
 
-                title = content.find("h3")
-                if not title:
-                    continue
+        if not entries:
+            _LOGGER.warning(
+                "No schedule entries found for municipality %s, street %s",
+                self.municipality_id,
+                self.street,
+            )
 
-                waste_type = title.text.strip()
+        for date_text, waste_type, color in entries:
+            date_match = re.search(r"(\d{4}-\d{2}-\d{2})", date_text)
+            if not date_match:
+                continue
+            date_str = date_match.group(1)
+            weekday_match = re.search(r"\((.*?)\)", date_text)
+            weekday = weekday_match.group(1) if weekday_match else None
 
-                # Assign waste type ID
-                waste_id = waste_type_to_id.get(waste_type, "")
+            waste_id = waste_id_from_name(waste_type, color)
+            if not waste_id:
+                _LOGGER.debug("Unknown waste type skipped: %s", waste_type)
+                continue
 
-                # Add date to list
-                if date_str:
-                    try:
-                        date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-                        date_entry = {
-                            "date": date_str,
-                            "date_obj": date_obj,
-                            "weekday": weekday,
-                            "waste_type": waste_type,
-                            "waste_id": waste_id,
-                            "color": color,
-                        }
-                        dates.append(date_entry)
-                    except ValueError as date_error:
-                        _LOGGER.error("Invalid date format: %s - %s", date_str, date_error)
+            try:
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError as date_error:
+                _LOGGER.error("Invalid date format: %s - %s", date_str, date_error)
+                continue
 
-            except Exception as e:
-                _LOGGER.error("Error processing date card: %s", e)
+            dates.append(
+                {
+                    "date": date_str,
+                    "date_obj": date_obj,
+                    "weekday": weekday,
+                    "waste_type": waste_type,
+                    "waste_id": waste_id,
+                    "color": color,
+                }
+            )
 
         # Sort dates by date
         dates.sort(key=lambda x: x["date"] if x["date"] else "")
@@ -277,7 +300,14 @@ class WasteCollectionCoordinator(DataUpdateCoordinator):
         today = date.today()
 
         for waste_id, waste_info in WASTE_TYPES.items():
-            waste_dates = [d for d in dates if d["waste_id"] == waste_id]
+            # Kilka frakcji może mapować się na ten sam typ (np. szkło kolorowe
+            # i bezbarwne) - usuń zduplikowane daty
+            seen = set()
+            waste_dates = []
+            for d in dates:
+                if d["waste_id"] == waste_id and d["date"] not in seen:
+                    seen.add(d["date"])
+                    waste_dates.append(d)
 
             # Find next collection date
             future_dates = [d for d in waste_dates if d["date_obj"] >= today]

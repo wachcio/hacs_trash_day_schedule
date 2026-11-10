@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.const import Platform
-from homeassistant.helpers import template
+from homeassistant.components import persistent_notification
 
 from .const import (
     DOMAIN,
@@ -51,14 +51,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             update_interval=update_interval,
         )
 
-        # Fetch initial data
+        # Fetch initial data (raises ConfigEntryNotReady on failure -> HA retries)
         await coordinator.async_config_entry_first_refresh()
 
-        # Sprawdź dane, nawet puste dane są OK, ale błąd nie
-        if coordinator.last_update_success is False:
-            raise ConfigEntryNotReady("Failed to fetch initial data")
-
-        hass.data[DOMAIN][entry.entry_id] = coordinator
+        hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
         # Setup platforms
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -67,8 +63,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.async_on_unload(entry.add_update_listener(update_options))
 
         # Utwórz funkcję serwisową do tworzenia szablonów
-        @callback
-        def install_template_sensors(call):
+        async def install_template_sensors(call):
             """Install template sensors for TrashDay."""
             try:
                 force = call.data.get("force", False)
@@ -175,17 +170,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         {{% endif %}}
 """.format(street=safe_street)
 
-                # Check if file exists and we don't want to force overwrite
-                if os.path.exists(template_path) and not force:
+                def _write_file() -> bool:
+                    # Check if file exists and we don't want to force overwrite
+                    if os.path.exists(template_path) and not force:
+                        return False
+                    with open(template_path, "w", encoding="utf-8") as f:
+                        f.write(template_content)
+                    return True
+
+                if not await hass.async_add_executor_job(_write_file):
                     _LOGGER.info("Template file already exists: %s", template_path)
                     return
 
-                # Write the file
-                with open(template_path, "w", encoding="utf-8") as f:
-                    f.write(template_content)
-
                 # Create notification for user
-                hass.components.persistent_notification.async_create(
+                persistent_notification.async_create(
+                    hass,
                     f"Template sensors for TrashDay have been created for street {street}. "
                     f"To activate them, add this line to your configuration.yaml file:\n\n"
                     f"template: !include {os.path.basename(template_path)}\n\n"
@@ -204,9 +203,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
         return True
+    except ConfigEntryNotReady:
+        raise
     except Exception as e:
         _LOGGER.error("Error setting up TrashDay: %s", e, exc_info=True)
-        return False
+        raise ConfigEntryNotReady(f"Error setting up TrashDay: {e}") from e
 
 
 async def update_options(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -218,6 +219,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        hass.data[DOMAIN].pop(entry.entry_id, None)
 
     return unload_ok
